@@ -106,7 +106,16 @@ echo "📥 Pre-pulling Cribl custom images (linux/amd64) and loading into kind..
 for img in "${CRIBL_IMAGES[@]}"; do
     docker pull --platform linux/amd64 "$img"
 done
-kind load docker-image --name "$CLUSTER_NAME" "${CRIBL_IMAGES[@]}"
+
+# kind load uses ctr import which rejects amd64 manifests on arm64 nodes.
+# Export to a tar and import with --no-unpack to skip platform validation;
+# containerd unpacks lazily at runtime where Rosetta handles amd64.
+IMAGES_TAR=$(mktemp)
+docker save "${CRIBL_IMAGES[@]}" -o "$IMAGES_TAR"
+for node in $(kind get nodes --name "$CLUSTER_NAME"); do
+    docker exec -i "$node" ctr --namespace=k8s.io images import --no-unpack - < "$IMAGES_TAR"
+done
+rm -f "$IMAGES_TAR"
 
 # Deploy using Helm. Server-side apply + force-conflicts so helm can
 # reclaim fields previously owned by kubectl-client-side-apply (e.g.,
