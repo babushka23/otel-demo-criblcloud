@@ -75,6 +75,12 @@ if [[ -z "$CRIBL_ENDPOINT" || -z "$CRIBL_USERNAME" || -z "$CRIBL_PASSWORD" ]]; t
     exit 1
 fi
 
+if [[ -z "$OTEL_CHART_VERSION" ]]; then
+    echo "❌ Error: OTEL_CHART_VERSION not set in .env"
+    echo "   Pin this to avoid pulling a breaking latest chart version"
+    exit 1
+fi
+
 AUTH_HEADER=$(echo -n "${CRIBL_USERNAME}:${CRIBL_PASSWORD}" | base64 -w 0)
 
 sed -e "s/__CRIBL_ENDPOINT__/${CRIBL_ENDPOINT}/g" \
@@ -91,6 +97,7 @@ echo "✅ Cribl configuration loaded: https://$CRIBL_ENDPOINT"
 echo "📦 Deploying OpenTelemetry demo with Helm..."
 helm upgrade --install opentelemetry-demo open-telemetry/opentelemetry-demo \
     --namespace otel-demo \
+    --version "$OTEL_CHART_VERSION" \
     --values "$VALUES_FILE" \
     --server-side=true \
     --force-conflicts \
