@@ -89,6 +89,25 @@ sed -e "s/__CRIBL_ENDPOINT__/${CRIBL_ENDPOINT}/g" \
 
 echo "✅ Cribl configuration loaded: https://$CRIBL_ENDPOINT"
 
+# On Apple Silicon, GHCR images are amd64-only. Pull them for the correct
+# platform and load into kind so containerd doesn't reject the manifest.
+CRIBL_IMAGES=(
+    "ghcr.io/criblio/opentelemetry-demo:1fe73d4-load-generator"
+    "ghcr.io/criblio/opentelemetry-demo:0a07691-cart"
+    "ghcr.io/criblio/opentelemetry-demo:9e0f6bd-checkout"
+    "ghcr.io/criblio/opentelemetry-demo:9e0f6bd-payment"
+    "ghcr.io/criblio/opentelemetry-demo:9e0f6bd-recommendation"
+    "ghcr.io/criblio/opentelemetry-demo:9e0f6bd-frontend"
+    "ghcr.io/criblio/opentelemetry-demo:4affae4-currency"
+    "ghcr.io/criblio/opentelemetry-demo:dd3c7c9-accounting"
+)
+
+echo "📥 Pre-pulling Cribl custom images (linux/amd64) and loading into kind..."
+for img in "${CRIBL_IMAGES[@]}"; do
+    docker pull --platform linux/amd64 "$img"
+done
+kind load docker-image --name "$CLUSTER_NAME" "${CRIBL_IMAGES[@]}"
+
 # Deploy using Helm. Server-side apply + force-conflicts so helm can
 # reclaim fields previously owned by kubectl-client-side-apply (e.g.,
 # from flagd-set.sh runtime patches or one-off kubectl edits). Note:
